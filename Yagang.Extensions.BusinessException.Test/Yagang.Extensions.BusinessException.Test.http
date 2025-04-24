@@ -1,0 +1,6 @@
+@Yagang.Extensions.BusinessException.Test_HostAddress = http://localhost:5132
+
+GET {{Yagang.Extensions.BusinessException.Test_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
