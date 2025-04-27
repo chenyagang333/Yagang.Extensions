@@ -21,7 +21,14 @@ namespace Yagang.Extensions.BusinessException.Test.Controllers
         [HttpGet(Name = "GetWeatherForecast")]
         public IEnumerable<WeatherForecast> Get()
         {
+            var ss = Enum.GetNames<sss>();
             throw new BusinessException("testsss");
+        }
+
+        public enum sss
+        {
+            AA,
+            BB
         }
     }
 }
