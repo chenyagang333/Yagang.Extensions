@@ -1,13 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 using Yagang.EntityFrameworkCore.IEntities;
 
 namespace Yagang.EntityFrameworkCore.DbContexts;
 public class BaseDbContext<TKey>(
     DbContextOptions options,
-    IHttpContextAccessor httpContextAccessor
+    IServiceProvider serviceProvider
     ) : DbContext(options)
     where TKey : IEquatable<TKey>
 {
@@ -63,7 +64,8 @@ public class BaseDbContext<TKey>(
 
     public virtual TKey? GetNameIdentifier()
     {
-        var nameIdentifier = httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        var nameIdentifier = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         return nameIdentifier switch
         {
