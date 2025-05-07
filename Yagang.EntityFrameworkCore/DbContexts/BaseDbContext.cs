@@ -1,60 +1,47 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.Extensions.DependencyInjection;
-using System.Security.Claims;
-using Yagang.EntityFrameworkCore.IEntities;
+using Yagang.EntityFrameworkCore.Entities;
 
 namespace Yagang.EntityFrameworkCore.DbContexts;
-public class BaseDbContext<TKey>(
-    DbContextOptions options,
-    IServiceProvider serviceProvider
+public abstract class BaseDbContext<TKey, TDateTime>(
+    DbContextOptions options
     ) : DbContext(options)
     where TKey : IEquatable<TKey>
+    where TDateTime : struct
 {
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-    }
-    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-    {
-        configurationBuilder.Properties<Enum>().HaveConversion<string>().HaveMaxLength(50);
-        base.ConfigureConventions(configurationBuilder);
-    }
-
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         UpdateBaseEntity();
         return base.SaveChangesAsync(cancellationToken);
     }
 
-    public virtual BaseDbContext<TKey> UpdateBaseEntity()
+    public virtual BaseDbContext<TKey, TDateTime> UpdateBaseEntity()
     {
         var userId = GetNameIdentifier();
 
         var entityEntries = ChangeTracker.Entries()
-            .Where(x => x.Entity is IBaseEntity<TKey>)
+            .Where(x => x.Entity is BaseEntity<TKey, TDateTime>)
             .Where(x => x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
 
         foreach (var entityEntriy in entityEntries)
         {
-            var entity = (IBaseEntity<TKey>)entityEntriy.Entity;
-             
+            var entity = (BaseEntity<TKey, TDateTime>)entityEntriy.Entity;
+
+            var now = GetUpdateDateTime();
             if (entityEntriy.State == EntityState.Added)
             {
-                entity.CreationTime = DateTimeOffset.UtcNow;
+                entity.CreationTime = now;
                 entity.CreatorId = userId;
             }
             else if (entityEntriy.State == EntityState.Modified)
             {
-                entity.UpdateTime = DateTimeOffset.UtcNow;
+                entity.UpdateTime = now;
                 entity.UpdaterId = userId;
             }
             else if (entityEntriy.State == EntityState.Deleted)
             {
                 entity.IsDeleted = true;
-                entity.DeletionTime = DateTimeOffset.UtcNow;
+                entity.DeletionTime = now;
                 entity.DeleterId = userId;
             }
         }
@@ -62,22 +49,7 @@ public class BaseDbContext<TKey>(
         return this;
     }
 
-    public virtual TKey? GetNameIdentifier()
-    {
-        
-        var nameIdentifier = serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    public abstract TKey GetNameIdentifier();
+    public abstract TDateTime GetUpdateDateTime();
 
-        return nameIdentifier switch
-        {
-            null => default,
-            _ => typeof(TKey) switch
-            {
-                Type t when t == typeof(int) => (TKey)(object)int.Parse(nameIdentifier),
-                Type t when t == typeof(long) => (TKey)(object)long.Parse(nameIdentifier),
-                Type t when t == typeof(Guid) => (TKey)(object)Guid.Parse(nameIdentifier),
-                Type t when t == typeof(string) => (TKey)(object)nameIdentifier,
-                _ => throw new NotSupportedException($"Unsupported key type: {typeof(TKey).Name}")
-            }
-        };
-    }
 }
